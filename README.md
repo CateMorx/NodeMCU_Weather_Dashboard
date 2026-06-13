@@ -43,6 +43,3 @@
 3. Flash the code to your ESP8266.
 
 
-
-## 👥 Authors
-* **Group 4501 / Batch 2026** - *CMPE-409 Embedded Systems*
