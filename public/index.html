@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NodeMCU Weather Monitor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    :root {
+      --blue-dark: #173d6b;
+      --blue-main: #2f6fe4;
+      --blue-soft: #85a8e2;
+      --blue-mid: #5589ea;
+      --blue-text: #2157b7;
+
+      --orange-dark: #964508;
+      --orange-main: #eb7c1b;
+      --orange-soft: #f6d3b7;
+      --orange-mid: #e69857;
+      --orange-text: #c66512;
+
+      --bg: #b7c9e5;
+      --page-grad-1: #90b5ec;
+      --page-grad-2: #f2e1d2;
+      --page-grad-3: #ef9547;
+
+      --card: rgba(255,255,255,0.94);
+      --text: #14233d;
+      --muted: #5e7492;
+      --border: #d8deea;
+      --line: #e6ebf3;
+      --success-bg: #dff4e4;
+      --success-text: #1d7a36;
+      --shadow: 0 14px 32px rgba(20, 35, 61, 0.08);
+      --shadow-soft: 0 8px 22px rgba(20, 35, 61, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(47, 111, 228, 0.16), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(245, 138, 47, 0.14), transparent 34%),
+        linear-gradient(135deg, var(--page-grad-1) 0%, var(--page-grad-2) 52%, var(--page-grad-3) 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .page {
+      width: min(1180px, 94%);
+      margin: 0 auto;
+      padding: 24px 0 40px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #12345b, #275fb8);
+      color: white;
+      border-radius: 28px;
+      padding: 30px;
+      box-shadow: 0 18px 40px rgba(18, 52, 91, 0.22);
+      display: grid;
+      grid-template-columns: 1.5fr 0.9fr;
+      gap: 24px;
+      align-items: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      background: rgba(245, 138, 47, 0.22);
+      right: -90px;
+      top: -100px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(30px, 5vw, 48px);
+      line-height: 1.05;
+      letter-spacing: -1.2px;
+    }
+
+    .hero p {
+      color: rgba(255,255,255,0.84);
+      line-height: 1.6;
+      max-width: 650px;
+      margin-top: 14px;
+    }
+
+    .hero-panel {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 20px;
+      border-radius: 22px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-panel strong {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 15px;
+    }
+
+    .hero-panel span {
+      display: block;
+      color: rgba(255,255,255,0.82);
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 6px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin: 24px 0 20px;
+    }
+
+    .status-pill {
+      background: rgba(255,255,255,0.92);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-soft);
+      padding: 13px 16px;
+      border-radius: 999px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .notify-btn {
+      border: none;
+      background: linear-gradient(135deg, var(--orange-main), #ffb347);
+      color: white;
+      padding: 14px 18px;
+      border-radius: 999px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 12px 26px rgba(245, 138, 47, 0.22);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .notify-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 34px rgba(245, 138, 47, 0.28);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(230, 235, 243, 0.95);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+    }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      width: 86px;
+      height: 86px;
+      right: -12px;
+      top: -12px;
+      border-radius: 26px 0 0 60px;
+      opacity: 0.3;
+    }
+
+    .card.orange::after {
+      background: var(--orange-main);
+    }
+
+    .card.blue::after {
+      background: var(--blue-main);
+    }
+
+    .card.neutral::after {
+      background: linear-gradient(135deg, var(--blue-main), var(--orange-main));
+    }
+
+    .label {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .label.orange {
+      color: var(--orange-text);
+    }
+
+    .label.blue {
+      color: var(--blue-text);
+    }
+
+    .label.neutral {
+      color: #5f6f86;
+    }
+
+    .value {
+      font-size: 44px;
+      font-weight: 900;
+      letter-spacing: -1.2px;
+      margin-bottom: 10px;
+    }
+
+    .value.orange {
+      color: #9f5316;
+    }
+
+    .value.blue {
+      color: #1e56b3;
+    }
+
+    .value.neutral {
+      color: var(--text);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .alert-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .alert-box {
+      background: rgba(255,255,255,0.94);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 20px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .alert-title {
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+
+    .alert-desc {
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .alert-normal {
+      border-left: 7px solid #2eb86c;
+    }
+
+    .alert-rain {
+      border-left: 7px solid var(--blue-main);
+      background: linear-gradient(180deg, rgba(116, 167, 250, 0.96), rgba(255,255,255,0.94));
+    }
+
+    .alert-heat {
+      border-left: 7px solid var(--orange-main);
+      background: linear-gradient(180deg, rgba(226, 177, 137, 0.96), rgba(255,255,255,0.94));
+    }
+
+    .table-wrap {
+      background: rgba(255,255,255,0.95);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .table-wrap::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 7px;
+      border-radius: 28px 28px 0 0;
+      background: linear-gradient(90deg, var(--blue-main), var(--orange-main));
+    }
+
+    .table-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .table-head h2 {
+      margin: 0 0 8px;
+      font-size: 22px;
+    }
+
+    .table-sub {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .table-meta {
+      text-align: right;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .legend-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid transparent;
+    }
+
+    .legend-chip.blue {
+      background: var(--blue-soft);
+      color: var(--blue-text);
+      border-color: #98b8f5;
+    }
+
+    .legend-chip.orange {
+      background: var(--orange-soft);
+      color: var(--orange-text);
+      border-color: #f6c59b;
+    }
+
+    .legend-chip.green {
+      background: var(--success-bg);
+      color: var(--success-text);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 760px;
+      overflow: hidden;
+    }
+
+    thead th {
+      text-align: left;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 16px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #d6dff1;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    thead th.col-temp,
+    thead th.col-heat {
+      color: var(--orange-text);
+    }
+
+    thead th.col-humid {
+      color: var(--blue-text);
+    }
+
+    thead th.col-status,
+    thead th.col-time {
+      color: #64748b;
+    }
+
+    tbody tr {
+      transition: background 0.18s ease, transform 0.18s ease;
+    }
+
+    tbody tr:nth-child(even) {
+      background: rgba(247,249,253,0.72);
+    }
+
+    tbody tr:hover {
+      background: #f1f6ff;
+    }
+
+    tbody td {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 700;
+      vertical-align: middle;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    td.temp-cell,
+    td.heat-cell {
+      color: #9a5318;
+    }
+
+    td.humidity-cell {
+      color: #1e56b3;
+    }
+
+    td.time-cell {
+      color: #1c3156;
+      font-weight: 800;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      margin-right: 6px;
+      margin-bottom: 4px;
+    }
+
+    .tag-normal {
+      background: var(--success-bg);
+      color: var(--success-text);
+    }
+
+    .tag-rain {
+      background: var(--blue-soft);
+      color: var(--blue-text);
+    }
+
+    .tag-heat {
+      background: var(--orange-soft);
+      color: var(--orange-text);
+    }
+
+    .status-stack {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    @media (max-width: 980px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .alert-strip {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 580px) {
+      .page {
+        width: min(95%, 100%);
+        padding-top: 18px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .controls {
+        align-items: stretch;
+      }
+
+      .notify-btn,
+      .status-pill {
+        width: 100%;
+        text-align: center;
+      }
+
+      .table-head {
+        flex-direction: column;
+      }
+
+      .table-meta {
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <div class="badge">● Live Firebase Monitoring</div>
+        <h1>NodeMCU Weather Dashboard</h1>
+        <p>
+          Real-time DHT11 monitoring for temperature, humidity, and computed heat index,
+          with rain and heat alert conditions connected to Firebase.
+        </p>
+      </div>
+
+      <div class="hero-panel">
+        <strong>Alert Thresholds</strong>
+        <span><b>Rain alert:</b> Humidity reaches 75% or higher</span>
+        <span><b>Heat alert:</b> Heat index reaches 45°C or higher</span>
+      </div>
+    </section>
+
+    <section class="controls">
+      <div class="status-pill" id="connectionStatus">Waiting for Firebase data...</div>
+      <button class="notify-btn" onclick="enableNotifications()">Enable Mobile Notifications</button>
+    </section>
+
+    <section class="grid">
+      <div class="card orange">
+        <div class="label orange">Temperature</div>
+        <div class="value orange" id="temperature">-- °C</div>
+        <div class="hint">Actual air temperature measured by the DHT11 sensor</div>
+      </div>
+
+      <div class="card blue">
+        <div class="label blue">Humidity</div>
+        <div class="value blue" id="humidity">-- %</div>
+        <div class="hint">Relative humidity. Rain alert starts at 75%</div>
+      </div>
+
+      <div class="card orange">
+        <div class="label orange">Heat Index</div>
+        <div class="value orange" id="heatIndex">-- °C</div>
+        <div class="hint">“Feels like” temperature based on heat plus humidity</div>
+      </div>
+
+      <div class="card neutral">
+        <div class="label neutral">Last Update</div>
+        <div class="value neutral" id="lastUpdate" style="font-size: 22px;">--</div>
+        <div class="hint">Latest Firebase timestamp</div>
+      </div>
+    </section>
+
+    <section class="alert-strip">
+      <div class="alert-box alert-normal" id="rainBox">
+        <div class="alert-title" id="rainTitle">Rain Status: Normal</div>
+        <div class="alert-desc" id="rainDesc">Humidity is below the rain alert threshold.</div>
+      </div>
+
+      <div class="alert-box alert-normal" id="heatBox">
+        <div class="alert-title" id="heatTitle">Heat Status: Normal</div>
+        <div class="alert-desc" id="heatDesc">Heat index is below the heat alert threshold.</div>
+      </div>
+    </section>
+
+    <section class="table-wrap">
+      <div class="table-head">
+        <div>
+          <h2>Latest Readings</h2>
+          <div class="table-sub">
+            Historical view of the most recent sensor data captured.
+          </div>
+          <div class="legend">
+            <span class="legend-chip orange">Temperature / Heat Index</span>
+            <span class="legend-chip blue">Humidity / Rain-related</span>
+            <span class="legend-chip green">Normal Status</span>
+          </div>
+        </div>
+
+        <div class="table-meta">
+          <div>Showing the 10 newest records</div>
+          <div>Live-updated in real time</div>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th class="col-temp">Temperature</th>
+            <th class="col-humid">Humidity</th>
+            <th class="col-heat">Heat Index</th>
+            <th class="col-status">Status</th>
+            <th class="col-time">Time</th>
+          </tr>
+        </thead>
+        <tbody id="dataTable"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAuaiByTvUGmBlFUlFenvnUofrumgK4mUI",
+      authDomain: "embeddedsystems-11833.firebaseapp.com",
+      databaseURL: "https://embeddedsystems-11833-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "embeddedsystems-11833",
+      storageBucket: "embeddedsystems-11833.firebasestorage.app",
+      messagingSenderId: "151254075418",
+      appId: "1:151254075418:web:ce135ac7984366814b29a3",
+      measurementId: "G-BS4EWRHYY8"
+    };
+
+    const VAPID_KEY = 'BDzngJW-30zZfBZ9M-3Y8t32yWW73SJ6HU_hr_39oPI5D4lropy65iQeS89cU_GMGXW_lvOT7xufBhjdB8rDtbY';
+
+    firebase.initializeApp(firebaseConfig);
+
+    const database = firebase.database();
+    const messaging = firebase.messaging();
+
+    const sensorRef = database.ref('sensorData').limitToLast(10);
+
+    sensorRef.on('value', (snapshot) => {
+      const data = snapshot.val();
+      const table = document.getElementById('dataTable');
+
+      table.innerHTML = '';
+
+      if (!data) {
+        document.getElementById('connectionStatus').textContent = 'No sensor data yet.';
+        return;
+      }
+
+      const readings = Object.values(data).sort((a, b) => b.timestamp - a.timestamp);
+      const latest = readings[0];
+
+      const latestTemp = Number(latest.temperature || 0);
+      const latestHumidity = Number(latest.humidity || 0);
+      const latestHeatIndex = Number(latest.heatIndex || 0);
+
+      document.getElementById('temperature').textContent = latestTemp.toFixed(1) + ' °C';
+      document.getElementById('humidity').textContent = latestHumidity.toFixed(1) + ' %';
+      document.getElementById('heatIndex').textContent = latestHeatIndex.toFixed(1) + ' °C';
+      document.getElementById('lastUpdate').textContent = new Date(latest.timestamp).toLocaleTimeString();
+      document.getElementById('connectionStatus').textContent = 'Live data connected';
+
+      updateAlertPanels(latest);
+
+      readings.forEach((reading) => {
+        const row = document.createElement('tr');
+
+        const temp = Number(reading.temperature || 0);
+        const humidity = Number(reading.humidity || 0);
+        const heatIndex = Number(reading.heatIndex || 0);
+        const time = new Date(reading.timestamp).toLocaleString();
+
+        let statusTags = '';
+
+        if (reading.rainAlert) {
+          statusTags += '<span class="tag tag-rain">Rain Alert</span>';
+        }
+
+        if (reading.heatAlert) {
+          statusTags += '<span class="tag tag-heat">Heat Alert</span>';
+        }
+
+        if (!reading.rainAlert && !reading.heatAlert) {
+          statusTags = '<span class="tag tag-normal">Normal</span>';
+        }
+
+        row.innerHTML = `
+          <td class="temp-cell">${temp.toFixed(1)} °C</td>
+          <td class="humidity-cell">${humidity.toFixed(1)} %</td>
+          <td class="heat-cell">${heatIndex.toFixed(1)} °C</td>
+          <td><div class="status-stack">${statusTags}</div></td>
+          <td class="time-cell">${time}</td>
+        `;
+
+        table.appendChild(row);
+      });
+    });
+
+    function updateAlertPanels(latest) {
+      const rainBox = document.getElementById('rainBox');
+      const rainTitle = document.getElementById('rainTitle');
+      const rainDesc = document.getElementById('rainDesc');
+
+      const heatBox = document.getElementById('heatBox');
+      const heatTitle = document.getElementById('heatTitle');
+      const heatDesc = document.getElementById('heatDesc');
+
+      if (latest.rainAlert) {
+        rainBox.className = 'alert-box alert-rain';
+        rainTitle.textContent = 'Rain Status: Alert';
+        rainDesc.textContent = `Humidity reached ${Number(latest.humidity).toFixed(1)}%. Rain notification condition is active.`;
+      } else {
+        rainBox.className = 'alert-box alert-normal';
+        rainTitle.textContent = 'Rain Status: Normal';
+        rainDesc.textContent = 'Humidity is below the 75% rain alert threshold.';
+      }
+
+      if (latest.heatAlert) {
+        heatBox.className = 'alert-box alert-heat';
+        heatTitle.textContent = 'Heat Status: Alert';
+        heatDesc.textContent = `Heat index reached ${Number(latest.heatIndex).toFixed(1)}°C. Heat alert condition is active.`;
+      } else {
+        heatBox.className = 'alert-box alert-normal';
+        heatTitle.textContent = 'Heat Status: Normal';
+        heatDesc.textContent = 'Heat index is below the 45°C heat alert threshold.';
+      }
+    }
+
+    async function enableNotifications() {
+      try {
+        const permission = await Notification.requestPermission();
+
+        if (permission !== 'granted') {
+          alert('Notification permission was not granted.');
+          return;
+        }
+
+        const token = await messaging.getToken({
+          vapidKey: VAPID_KEY
+        });
+
+        if (token) {
+          await fetch('/save-token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ token: token })
+          });
+
+          alert('Notifications enabled successfully.');
+        } else {
+          alert('No FCM token received.');
+        }
+      } catch (error) {
+        console.error('Notification error:', error);
+        alert('Unable to enable notifications. Check the browser console.');
+      }
+    }
+
+    messaging.onMessage((payload) => {
+      console.log('Foreground message received:', payload);
+
+      if (payload.notification) {
+        alert(payload.notification.title + '\n' + payload.notification.body);
+      }
+    });
+  </script>
+</body>
+</html>
